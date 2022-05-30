@@ -1,0 +1,100 @@
+include ../components/.components
+
+-
+	const documentTitleParts = title
+		? [title, metadata.siteTitle]
+		: [metadata.siteTitle, metadata.tagline];
+
+	const menuItems = [
+		['ホーム', f.url('/')],
+		['私たちについて', f.url('/about/')],
+		['ニュース', f.url('/news/')]
+	];
+
+doctype html
+html(lang=metadata.lang)
+	head
+		meta(charset=metadata.encoding)
+		meta(name="viewport", content="width=device-width")
+		meta(name="format-detection", content="telephone=no")
+
+		title!= documentTitleParts.join(" &#8211; ")
+
+		if manifest
+			each cssPath in manifest['src/scripts/main.ts'].css
+				link(rel="stylesheet", href=f.url(`/${cssPath}`))
+			script(type="module", src=f.url(`/${manifest["src/scripts/main.ts"].file}`))
+
+		if environment === 'development'
+			script(type="module", src=f.url("/@vite/client"))
+			script(type="module", src=f.url("/src/scripts/main.ts"))
+
+		meta(name="description", content=description || metadata.tagline)
+
+		meta(property="og:title", content=title || metadata.tagline)
+		meta(property="og:type", content="website")
+		meta(property="og:image", content=`${metadata.siteUrl}${f.url('/assets/images/ogp.png')}`)
+		meta(property="og:url", content=`${metadata.siteUrl}${f.url(page.url)}`)
+		meta(property="og:description", content=description || metadata.tagline)
+		meta(property="og:site_name", content=metadata.siteTitle)
+		meta(property="og:locale", content=metadata.locale)
+
+		meta(name="twitter:card", content="summary_large_image")
+		meta(name="twitter:site", content="@Twitter")
+
+		link(rel="canonical", href=`${metadata.siteUrl}${f.url(page.url)}`)
+		link(rel="icon", href=f.url("/favicon.ico"))
+		link(rel="apple-touch-icon", href=f.url("/assets/images/apple-touch-icon.png"))
+
+	body(class="text-slate-500 bg-white")
+		header(
+			class="fixed top-0 inset-x-0 z-10 text-sm font-bold bg-white border-b border-slate-300",
+			x-data,
+			x-init=`
+				new ResizeObserver(([entry]) => {
+					document.documentElement.style.setProperty(
+						'--height-site-head',
+						\`\${entry.contentRect.height}px\`
+					);
+				}).observe($el);
+			`
+		)
+			div(class="container flex gap-x-6 justify-between", x-data="dialog", x-id="['menu-trigger']")
+				a(class="py-3", href=f.url("/"))= metadata.siteTitle
+				button(class="py-3", type="button", :id="$id('menu-trigger')", @click="isOpen = true")
+					| メニュー
+				template(x-teleport="#js-overlay-container")
+					div
+						div(class="fixed inset-0 z-20 bg-black/50", x-show="isOpen", x-transition.opacity)
+						div(
+							class="fixed inset-0 left-16 z-20 overflow-auto max-w-2xl ml-auto py-5 bg-white",
+							role="dialog",
+							:aria-labelledby="$id('menu-trigger')",
+							x-bind="root",
+							x-show="isOpen",
+							x-transition:enter="transition duration-200",
+							x-transition:enter-start="translate-x-full",
+							x-transition:enter-end="translate-x-0",
+							x-transition:leave="transition duration-200",
+							x-transition:leave-start="translate-x-0",
+							x-transition:leave-end="translate-x-full",
+							@click.outside="isOpen = false"
+						)
+							ul(class="divide-y")
+								each item, i in menuItems
+									li
+										a(class="block px-5 py-3", href=item[1], x-bind=i === 0 && "autoFocus")
+											= item[0]
+
+		block content
+
+		//- https://css-tricks.com/a-clever-sticky-footer-technique/
+		footer(class="sticky top-full mt-20 py-2 text-sm bg-slate-100")
+			nav
+				ul(class="container flex gap-x-6")
+					each item in menuItems
+						li
+							a(class="block py-3", href=item[1])= item[0]
+
+		//- https://atfzl.com/don-t-attach-tooltips-to-document-body
+		div#js-overlay-container
